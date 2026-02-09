@@ -59,17 +59,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!user) return;
+      if (!user) {
+        console.log('No user found');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('user_progress')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error;
+      if (error) {
+        console.error('Error fetching user progress:', error);
+        throw error;
+      }
 
       if (!data) {
+        console.log('Creating new user progress for user:', user.id);
         const newProgress: Omit<
           UserProgress,
           'id' | 'created_at' | 'updated_at'
@@ -80,13 +87,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           total_points: 0,
           collection_count: 0,
         };
-        const { data: created } = await supabase
+        const { data: created, error: insertError } = await supabase
           .from('user_progress')
           .insert([newProgress])
           .select()
           .single();
+
+        if (insertError) {
+          console.error('Failed to create user progress:', insertError);
+          throw insertError;
+        }
+
+        console.log('User progress created:', created);
         setUserProgress(created);
       } else {
+        console.log('User progress loaded:', data);
         setUserProgress(data);
       }
     } catch (err) {
@@ -95,7 +110,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const recordCorrectAnswer = async (hintsUsed: number) => {
-    if (!userProgress || !currentCity) return;
+    if (!userProgress || !currentCity) {
+      console.log('Cannot record answer: missing userProgress or currentCity');
+      return;
+    }
 
     const points = Math.max(10 - hintsUsed * 2, 1);
     const updatedCities = [
@@ -111,10 +129,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       updated_at: new Date().toISOString(),
     };
 
-    setUserProgress(updatedProgress);
+    console.log('Recording answer - Points:', points, 'Updated progress:', updatedProgress);
 
     try {
-      await supabase
+      const { data, error } = await supabase
         .from('user_progress')
         .update({
           completed_cities: updatedCities,
@@ -123,7 +141,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           current_streak: updatedProgress.current_streak,
           updated_at: updatedProgress.updated_at,
         })
-        .eq('user_id', userProgress.user_id);
+        .eq('user_id', userProgress.user_id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Failed to update progress:', error);
+        throw error;
+      }
+
+      console.log('Progress updated successfully:', data);
+      setUserProgress(data);
     } catch (err) {
       console.error('Failed to record answer:', err);
     }

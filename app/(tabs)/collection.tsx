@@ -6,10 +6,18 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { useGame } from '@/context/GameContext';
+import { useCallback } from 'react';
 
 export default function CollectionScreen() {
-  const { isLoading, cities, userProgress } = useGame();
+  const { isLoading, cities, userProgress, loadUserProgress } = useGame();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserProgress();
+    }, [])
+  );
 
   if (isLoading) {
     return (

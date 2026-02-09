@@ -1,13 +1,20 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useGame } from '@/context/GameContext';
 import { useAuth } from '@/context/AuthContext';
 import { Flame, Star, LogOut } from 'lucide-react-native';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { isLoading, streak, totalPoints, cities, userProgress } = useGame();
+  const { isLoading, streak, totalPoints, cities, userProgress, loadUserProgress } = useGame();
   const { signOut } = useAuth();
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserProgress();
+    }, [])
+  );
 
   const handlePlayPress = () => {
     router.push('/game');
